@@ -60,6 +60,34 @@ const mockEntries: VaultEntry[] = [
     modifiedAt: 1700000000,
     fileSize: 128,
   },
+  {
+    path: '/vault/topic/software-development.md',
+    filename: 'software-development.md',
+    title: 'Software Development',
+    isA: 'Topic',
+    aliases: ['Dev', 'Coding'],
+    belongsTo: [],
+    relatedTo: [],
+    status: null,
+    owner: null,
+    cadence: null,
+    modifiedAt: 1700000000,
+    fileSize: 256,
+  },
+  {
+    path: '/vault/topic/trading.md',
+    filename: 'trading.md',
+    title: 'Trading',
+    isA: 'Topic',
+    aliases: ['Algorithmic Trading'],
+    belongsTo: [],
+    relatedTo: [],
+    status: null,
+    owner: null,
+    cadence: null,
+    modifiedAt: 1700000000,
+    fileSize: 180,
+  },
 ]
 
 const defaultSelection: SidebarSelection = { kind: 'filter', filter: 'all' }
@@ -149,5 +177,35 @@ describe('Sidebar', () => {
       kind: 'filter',
       filter: 'people',
     })
+  })
+
+  it('renders TOPICS section with topic entries', () => {
+    render(<Sidebar entries={mockEntries} selection={defaultSelection} onSelect={() => {}} />)
+    expect(screen.getByText('TOPICS')).toBeInTheDocument()
+    expect(screen.getByText('Software Development')).toBeInTheDocument()
+    expect(screen.getByText('Trading')).toBeInTheDocument()
+  })
+
+  it('calls onSelect with topic kind when clicking a topic', () => {
+    const onSelect = vi.fn()
+    render(<Sidebar entries={mockEntries} selection={defaultSelection} onSelect={onSelect} />)
+    fireEvent.click(screen.getByText('Software Development'))
+    expect(onSelect).toHaveBeenCalledWith({
+      kind: 'topic',
+      entry: mockEntries[4],
+    })
+  })
+
+  it('highlights active topic', () => {
+    const topicSelection: SidebarSelection = { kind: 'topic', entry: mockEntries[4] }
+    render(<Sidebar entries={mockEntries} selection={topicSelection} onSelect={() => {}} />)
+    const topicEl = screen.getByText('Software Development')
+    expect(topicEl.className).toContain('sidebar__topic-item--active')
+  })
+
+  it('does not render TOPICS section when no topics exist', () => {
+    const noTopics = mockEntries.filter((e) => e.isA !== 'Topic')
+    render(<Sidebar entries={noTopics} selection={defaultSelection} onSelect={() => {}} />)
+    expect(screen.queryByText('TOPICS')).not.toBeInTheDocument()
   })
 })

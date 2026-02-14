@@ -113,6 +113,27 @@ export function Sidebar({ entries, selection, onSelect }: SidebarProps) {
             </div>
           )
         })}
+
+        {(() => {
+          const topics = entries.filter((e) => e.isA === 'Topic')
+          if (topics.length === 0) return null
+          return (
+            <div className="sidebar__topics">
+              <div className="sidebar__topics-header">TOPICS</div>
+              {topics.map((entry) => (
+                <div
+                  key={entry.path}
+                  className={`sidebar__topic-item${
+                    isActive({ kind: 'topic', entry }) ? ' sidebar__topic-item--active' : ''
+                  }`}
+                  onClick={() => onSelect({ kind: 'topic', entry })}
+                >
+                  {entry.title}
+                </div>
+              ))}
+            </div>
+          )
+        })()}
       </nav>
     </aside>
   )
