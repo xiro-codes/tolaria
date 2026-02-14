@@ -17,8 +17,8 @@ const DEFAULT_SELECTION: SidebarSelection = { kind: 'filter', filter: 'all' }
 function App() {
   const [entries, setEntries] = useState<VaultEntry[]>([])
   const [selection, setSelection] = useState<SidebarSelection>(DEFAULT_SELECTION)
-  const [selectedNote, setSelectedNote] = useState<VaultEntry | null>(null)
-  const [noteContent, setNoteContent] = useState<string>('')
+  const [tabs, setTabs] = useState<{ entry: VaultEntry; content: string }[]>([])
+  const [activeTabPath, setActiveTabPath] = useState<string | null>(null)
   const [sidebarWidth, setSidebarWidth] = useState(250)
   const [noteListWidth, setNoteListWidth] = useState(300)
   const [inspectorWidth, setInspectorWidth] = useState(280)
@@ -46,7 +46,24 @@ function App() {
   }, [])
 
   const handleSelectNote = useCallback(async (entry: VaultEntry) => {
-    setSelectedNote(entry)
+    // If tab already open, just switch to it
+    setTabs((prev) => {
+      if (prev.some((t) => t.entry.path === entry.path)) {
+        setActiveTabPath(entry.path)
+        return prev
+      }
+      return prev
+    })
+
+    // Check if we already have this tab (use functional check to avoid stale closure)
+    let alreadyOpen = false
+    setTabs((prev) => {
+      alreadyOpen = prev.some((t) => t.entry.path === entry.path)
+      return prev
+    })
+    if (alreadyOpen) return
+
+    // Load content for new tab, then add and activate
     try {
       let content: string
       if (isTauri()) {
@@ -54,11 +71,38 @@ function App() {
       } else {
         content = await mockInvoke<string>('get_note_content', { path: entry.path })
       }
-      setNoteContent(content)
+      setTabs((prev) => {
+        if (prev.some((t) => t.entry.path === entry.path)) return prev
+        return [...prev, { entry, content }]
+      })
+      setActiveTabPath(entry.path)
     } catch (err) {
       console.warn('Failed to load note content:', err)
-      setNoteContent('')
+      setTabs((prev) => {
+        if (prev.some((t) => t.entry.path === entry.path)) return prev
+        return [...prev, { entry, content: '' }]
+      })
+      setActiveTabPath(entry.path)
     }
+  }, [])
+
+  const handleCloseTab = useCallback((path: string) => {
+    setTabs((prev) => {
+      const next = prev.filter((t) => t.entry.path !== path)
+      // If closing active tab, switch to adjacent tab
+      if (path === activeTabPath && next.length > 0) {
+        const closedIdx = prev.findIndex((t) => t.entry.path === path)
+        const newIdx = Math.min(closedIdx, next.length - 1)
+        setActiveTabPath(next[newIdx].entry.path)
+      } else if (next.length === 0) {
+        setActiveTabPath(null)
+      }
+      return next
+    })
+  }, [activeTabPath])
+
+  const handleSwitchTab = useCallback((path: string) => {
+    setActiveTabPath(path)
   }, [])
 
   const handleSidebarResize = useCallback((delta: number) => {
@@ -74,6 +118,8 @@ function App() {
     setInspectorWidth((w) => Math.max(200, Math.min(500, w - delta)))
   }, [])
 
+  const activeTab = tabs.find((t) => t.entry.path === activeTabPath) ?? null
+
   return (
     <div className="app">
       <div className="app__sidebar" style={{ width: sidebarWidth }}>
@@ -81,11 +127,16 @@ function App() {
       </div>
       <ResizeHandle onResize={handleSidebarResize} />
       <div className="app__note-list" style={{ width: noteListWidth }}>
-        <NoteList entries={entries} selection={selection} selectedNote={selectedNote} onSelectNote={handleSelectNote} />
+        <NoteList entries={entries} selection={selection} selectedNote={activeTab?.entry ?? null} onSelectNote={handleSelectNote} />
       </div>
       <ResizeHandle onResize={handleNoteListResize} />
       <div className="app__editor">
-        <Editor content={noteContent} selectedNote={selectedNote} />
+        <Editor
+          tabs={tabs}
+          activeTabPath={activeTabPath}
+          onSwitchTab={handleSwitchTab}
+          onCloseTab={handleCloseTab}
+        />
       </div>
       {!inspectorCollapsed && <ResizeHandle onResize={handleInspectorResize} />}
       <div

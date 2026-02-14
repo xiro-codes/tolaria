@@ -9,9 +9,16 @@ import { livePreview } from './livePreview'
 import type { VaultEntry } from '../types'
 import './Editor.css'
 
-interface EditorProps {
+interface Tab {
+  entry: VaultEntry
   content: string
-  selectedNote: VaultEntry | null
+}
+
+interface EditorProps {
+  tabs: Tab[]
+  activeTabPath: string | null
+  onSwitchTab: (path: string) => void
+  onCloseTab: (path: string) => void
 }
 
 const editorTheme = EditorView.theme({
@@ -49,16 +56,24 @@ const editorTheme = EditorView.theme({
   },
 })
 
-export function Editor({ content, selectedNote }: EditorProps) {
+export function Editor({ tabs, activeTabPath, onSwitchTab, onCloseTab }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
 
-  // Create/destroy editor view
+  const activeTab = tabs.find((t) => t.entry.path === activeTabPath) ?? null
+
+  // Create/destroy editor view when active tab changes
   useEffect(() => {
-    if (!containerRef.current) return
+    if (!containerRef.current || !activeTab) return
+
+    // If view already exists for this tab, skip
+    if (viewRef.current) {
+      viewRef.current.destroy()
+      viewRef.current = null
+    }
 
     const state = EditorState.create({
-      doc: content,
+      doc: activeTab.content,
       extensions: [
         lineNumbers(),
         highlightActiveLine(),
@@ -86,24 +101,11 @@ export function Editor({ content, selectedNote }: EditorProps) {
       view.destroy()
       viewRef.current = null
     }
-  // Re-create editor when the selected note changes
+  // Re-create when active tab path changes OR when tab data becomes available
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedNote?.path])
+  }, [activeTabPath, activeTab?.content])
 
-  // Update content when it loads (async content fetch)
-  useEffect(() => {
-    const view = viewRef.current
-    if (!view) return
-
-    const currentDoc = view.state.doc.toString()
-    if (currentDoc !== content) {
-      view.dispatch({
-        changes: { from: 0, to: currentDoc.length, insert: content },
-      })
-    }
-  }, [content])
-
-  if (!selectedNote) {
+  if (tabs.length === 0) {
     return (
       <div className="editor">
         <div className="editor__placeholder">
@@ -115,6 +117,26 @@ export function Editor({ content, selectedNote }: EditorProps) {
 
   return (
     <div className="editor">
+      <div className="editor__tab-bar">
+        {tabs.map((tab) => (
+          <div
+            key={tab.entry.path}
+            className={`editor__tab${tab.entry.path === activeTabPath ? ' editor__tab--active' : ''}`}
+            onClick={() => onSwitchTab(tab.entry.path)}
+          >
+            <span className="editor__tab-title">{tab.entry.title}</span>
+            <button
+              className="editor__tab-close"
+              onClick={(e) => {
+                e.stopPropagation()
+                onCloseTab(tab.entry.path)
+              }}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
       <div className="editor__cm-container" ref={containerRef} />
     </div>
   )
