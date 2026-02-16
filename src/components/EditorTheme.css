@@ -14,6 +14,11 @@
   caret-color: var(--colors-cursor);
 }
 
+/* Override BlockNote's default line-height on block-outer so our theme controls it */
+.editor__blocknote-container .bn-block-outer {
+  line-height: var(--editor-line-height) !important;
+}
+
 .editor__blocknote-container .bn-editor ::selection {
   background: var(--colors-selection);
 }
