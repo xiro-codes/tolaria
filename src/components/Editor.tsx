@@ -9,7 +9,6 @@ import { Inspector, type FrontmatterValue } from './Inspector'
 import { ResizeHandle } from './ResizeHandle'
 import { useEditorTheme } from '../hooks/useTheme'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
 import {
   Plus,
@@ -364,16 +363,6 @@ export function Editor({
           WebkitAppRegion: 'no-drag',
         } as React.CSSProperties}
       >
-        {showDiffToggle && (
-          <Button
-            variant={diffMode ? 'default' : 'outline'}
-            size="xs"
-            onClick={handleToggleDiff}
-            disabled={diffLoading}
-          >
-            {diffLoading ? '...' : diffMode ? 'Edit' : 'Diff'}
-          </Button>
-        )}
         <button
           className="flex items-center justify-center border-none bg-transparent p-0 text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
           onClick={onCreateNote}
@@ -434,14 +423,29 @@ export function Editor({
         >
           <MagnifyingGlass size={16} />
         </button>
-        <button
-          className="flex items-center justify-center border-none bg-transparent p-0 text-muted-foreground"
-          style={disabledIconStyle}
-          title="Coming soon"
-          tabIndex={-1}
-        >
-          <GitBranch size={16} />
-        </button>
+        {showDiffToggle && (
+          <button
+            className={cn(
+              "flex items-center justify-center border-none bg-transparent p-0 cursor-pointer transition-colors",
+              diffMode ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
+            onClick={handleToggleDiff}
+            disabled={diffLoading}
+            title={diffLoading ? 'Loading diff...' : diffMode ? 'Back to editor' : 'Show diff'}
+          >
+            <GitBranch size={16} />
+          </button>
+        )}
+        {!showDiffToggle && (
+          <button
+            className="flex items-center justify-center border-none bg-transparent p-0 text-muted-foreground"
+            style={disabledIconStyle}
+            title="No changes"
+            tabIndex={-1}
+          >
+            <GitBranch size={16} />
+          </button>
+        )}
         <button
           className="flex items-center justify-center border-none bg-transparent p-0 text-muted-foreground"
           style={disabledIconStyle}
@@ -472,8 +476,8 @@ export function Editor({
 
   const inspectorPanel = (
     <div
-      className="shrink-0 flex flex-col"
-      style={{ width: inspectorCollapsed ? 40 : inspectorWidth }}
+      className="shrink-0 flex flex-col min-h-0"
+      style={{ width: inspectorCollapsed ? 40 : inspectorWidth, height: '100%' }}
     >
       <Inspector
         collapsed={inspectorCollapsed}
@@ -493,7 +497,7 @@ export function Editor({
 
   if (tabs.length === 0) {
     return (
-      <div className="editor flex flex-col bg-background text-foreground">
+      <div className="editor flex flex-col min-h-0 overflow-hidden bg-background text-foreground">
         {tabBar}
         <div className="flex flex-1 min-h-0">
           <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center text-muted-foreground">
@@ -508,10 +512,10 @@ export function Editor({
   }
 
   return (
-    <div className="editor flex flex-col bg-background text-foreground">
+    <div className="editor flex flex-col min-h-0 overflow-hidden bg-background text-foreground">
       {tabBar}
       <div className="flex flex-1 min-h-0">
-        <div className="flex flex-1 flex-col min-w-0">
+        <div className="flex flex-1 flex-col min-w-0 min-h-0">
           {breadcrumbBar}
           {diffMode ? (
             <div className="flex-1 overflow-auto">

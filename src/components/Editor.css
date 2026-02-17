@@ -17,7 +17,8 @@
 /* BlockNote container */
 .editor__blocknote-container {
   flex: 1;
-  overflow: auto;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   justify-content: center;
 }
