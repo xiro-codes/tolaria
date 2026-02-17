@@ -157,7 +157,7 @@ export const Sidebar = memo(function Sidebar({ entries, selection, onSelect, onS
                     <div
                       key={entry.path}
                       className={cn(
-                        "cursor-pointer truncate rounded-md text-[13px] font-medium transition-colors",
+                        "cursor-pointer truncate rounded-md text-[13px] font-normal transition-colors",
                         isActive(isTopic ? { kind: 'topic', entry } : { kind: 'entity', entry })
                           ? "text-foreground"
                           : "text-foreground hover:bg-accent"
