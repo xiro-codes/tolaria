@@ -3,8 +3,6 @@ import type { VaultEntry, SidebarSelection } from '../types'
 import { cn } from '@/lib/utils'
 import { ChevronRight, ChevronDown, GitCommitHorizontal } from 'lucide-react'
 import {
-  MagnifyingGlass,
-  Gear,
   FileText,
   Star,
   Wrench,
@@ -16,7 +14,6 @@ import {
   Tag,
   TagSimple,
   Trash,
-  SidebarSimple,
   type IconProps,
 } from '@phosphor-icons/react'
 
@@ -66,14 +63,14 @@ export function Sidebar({ entries, selection, onSelect, onSelectNote, modifiedCo
 
   return (
     <aside className="flex h-full flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
-      {/* Header — 45px with traffic lights and toggle */}
+      {/* macOS Title Bar — 38px with traffic lights */}
       <div
-        className="flex shrink-0 items-center justify-between border-b border-border"
-        style={{ height: 45, padding: '0 16px', WebkitAppRegion: 'drag' } as React.CSSProperties}
+        className="flex shrink-0 items-center border-b border-border"
+        style={{ height: 38, padding: '0 12px', WebkitAppRegion: 'drag' } as React.CSSProperties}
         data-tauri-drag-region
       >
         {/* Traffic lights */}
-        <div className="flex items-center gap-2" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+        <div className="flex items-center gap-3" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           <div
             style={{
               width: 12,
@@ -99,15 +96,6 @@ export function Sidebar({ entries, selection, onSelect, onSelectNote, modifiedCo
             }}
           />
         </div>
-
-        {/* Sidebar toggle */}
-        <button
-          className="flex items-center justify-center border-none bg-transparent p-0 text-muted-foreground"
-          style={{ WebkitAppRegion: 'no-drag', cursor: 'pointer' } as React.CSSProperties}
-          title="Toggle sidebar"
-        >
-          <SidebarSimple size={16} />
-        </button>
       </div>
 
       {/* Navigation */}
