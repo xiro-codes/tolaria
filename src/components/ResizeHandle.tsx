@@ -67,7 +67,7 @@ export function ResizeHandle({ onResize }: ResizeHandleProps) {
 
   return (
     <div
-      className="w-1 shrink-0 cursor-col-resize bg-transparent transition-colors hover:bg-[var(--border-dialog)]"
+      className="-ml-1 w-1 shrink-0 cursor-col-resize bg-transparent transition-colors hover:bg-[var(--border)]"
       onMouseDown={handleMouseDown}
     />
   )

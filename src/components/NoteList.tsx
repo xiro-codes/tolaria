@@ -274,7 +274,7 @@ function NoteListInner({ entries, selection, selectedNote, allContent, modifiedF
           !isPinned && !isSelected && "hover:bg-muted"
         )}
         style={{
-          padding: isPinned || isSelected ? '10px 16px 10px 13px' : '10px 16px',
+          padding: isPinned || isSelected ? '14px 16px 14px 13px' : '14px 16px',
           ...(isSelected && {
             borderLeftColor: typeColor,
             backgroundColor: typeLightColor,
@@ -296,12 +296,12 @@ function NoteListInner({ entries, selection, selectedNote, allContent, modifiedF
           )}>
             {entry.title}
           </div>
-          <div className="text-[10px] text-muted-foreground">
-            {relativeDate(getDisplayDate(entry))}
-          </div>
         </div>
         <div className="mt-0.5 text-[12px] leading-[1.5] text-muted-foreground" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {entry.snippet}
+        </div>
+        <div className="mt-0.5 text-[10px] text-muted-foreground">
+          {relativeDate(getDisplayDate(entry))}
         </div>
       </div>
     )
@@ -310,7 +310,7 @@ function NoteListInner({ entries, selection, selectedNote, allContent, modifiedF
   return (
     <div className="flex flex-col overflow-hidden border-r border-border bg-card text-foreground" style={{ height: '100%' }}>
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3.5" data-tauri-drag-region style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
+      <div className="flex h-[45px] shrink-0 items-center justify-between border-b border-border px-4" data-tauri-drag-region style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
         <h3 className="m-0 min-w-0 flex-1 truncate text-[14px] font-semibold">
           {isEntityView ? selection.entry.title : 'Notes'}
         </h3>

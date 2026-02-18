@@ -60,7 +60,7 @@ export const Sidebar = memo(function Sidebar({ entries, selection, onSelect, onS
   }
 
   return (
-    <aside className="flex h-full flex-col overflow-hidden bg-sidebar text-sidebar-foreground" style={{ paddingTop: 38 } as React.CSSProperties}>
+    <aside className="flex h-full flex-col overflow-hidden border-r border-[var(--sidebar-border)] bg-sidebar text-sidebar-foreground" style={{ paddingTop: 38 } as React.CSSProperties}>
       {/* Native macOS title bar on top */}
 
       {/* Navigation */}
@@ -160,7 +160,7 @@ export const Sidebar = memo(function Sidebar({ entries, selection, onSelect, onS
                         "cursor-pointer truncate rounded-md text-[13px] font-normal transition-colors",
                         isActive(isTopic ? { kind: 'topic', entry } : { kind: 'entity', entry })
                           ? "text-foreground"
-                          : "text-foreground hover:bg-accent"
+                          : "text-muted-foreground hover:bg-accent"
                       )}
                       style={{
                         padding: '4px 16px 4px 28px',
