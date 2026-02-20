@@ -13,13 +13,22 @@ pub enum FrontmatterValue {
     Null,
 }
 
+/// Characters that require a YAML string value to be quoted.
+fn has_yaml_special_chars(s: &str) -> bool {
+    s.contains(':') || s.contains('#') || s.contains('\n')
+}
+
+/// Check if a string starts with a YAML collection indicator (array or map).
+fn starts_as_yaml_collection(s: &str) -> bool {
+    s.starts_with('[') || s.starts_with('{')
+}
+
 /// Check whether a YAML string value needs quoting to avoid ambiguity.
 fn needs_yaml_quoting(s: &str) -> bool {
-    let has_special_chars = s.contains(':') || s.contains('#') || s.contains('\n');
-    let starts_with_collection = s.starts_with('[') || s.starts_with('{');
-    let is_reserved_word = s == "true" || s == "false" || s == "null";
-    let looks_like_number = s.parse::<f64>().is_ok();
-    has_special_chars || starts_with_collection || is_reserved_word || looks_like_number
+    has_yaml_special_chars(s)
+        || starts_as_yaml_collection(s)
+        || matches!(s, "true" | "false" | "null")
+        || s.parse::<f64>().is_ok()
 }
 
 /// Quote a string value for YAML, escaping internal double quotes.
@@ -151,10 +160,8 @@ fn apply_field_update(lines: &[&str], key: &str, value: Option<&FrontmatterValue
         }
     }
 
-    if !found_key {
-        if let Some(v) = value {
-            new_lines.extend(format_yaml_field(key, v));
-        }
+    if let (false, Some(v)) = (found_key, value) {
+        new_lines.extend(format_yaml_field(key, v));
     }
 
     new_lines
