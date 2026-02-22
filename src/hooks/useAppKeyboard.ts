@@ -4,6 +4,7 @@ interface KeyboardActions {
   onQuickOpen: () => void
   onCreateNote: () => void
   onSave: () => void
+  onOpenSettings: () => void
   onTrashNote: (path: string) => void
   onArchiveNote: (path: string) => void
   activeTabPathRef: React.MutableRefObject<string | null>
@@ -13,7 +14,7 @@ interface KeyboardActions {
 type ShortcutHandler = () => void
 
 export function useAppKeyboard({
-  onQuickOpen, onCreateNote, onSave, onTrashNote, onArchiveNote,
+  onQuickOpen, onCreateNote, onSave, onOpenSettings, onTrashNote, onArchiveNote,
   activeTabPathRef, handleCloseTabRef,
 }: KeyboardActions) {
   const withActiveTab = (fn: (path: string) => void): ShortcutHandler => () => {
@@ -25,11 +26,12 @@ export function useAppKeyboard({
     p: onQuickOpen,
     n: onCreateNote,
     s: onSave,
+    ',': onOpenSettings,
     e: withActiveTab(onArchiveNote),
     w: withActiveTab((path) => handleCloseTabRef.current(path)),
     Backspace: withActiveTab(onTrashNote),
     Delete: withActiveTab(onTrashNote),
-  }), [onQuickOpen, onCreateNote, onSave, onTrashNote, onArchiveNote, activeTabPathRef, handleCloseTabRef])
+  }), [onQuickOpen, onCreateNote, onSave, onOpenSettings, onTrashNote, onArchiveNote, activeTabPathRef, handleCloseTabRef])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
