@@ -518,12 +518,12 @@ describe('useNoteActions hook', () => {
       expect(setToastMessage).toHaveBeenCalledWith('Failed to create note — disk write error')
     })
 
-    it('handleCreateNoteImmediate works with pending save callbacks', async () => {
-      const addPendingSave = vi.fn()
-      const removePendingSave = vi.fn()
+    it('handleCreateNoteImmediate calls trackUnsaved and markContentPending (no disk write)', async () => {
+      const trackUnsaved = vi.fn()
+      const markContentPending = vi.fn()
       const config = makeConfig()
-      config.addPendingSave = addPendingSave
-      config.removePendingSave = removePendingSave
+      config.trackUnsaved = trackUnsaved
+      config.markContentPending = markContentPending
 
       const { result } = renderHook(() => useNoteActions(config))
 
@@ -532,8 +532,8 @@ describe('useNoteActions hook', () => {
         await new Promise((r) => setTimeout(r, 0))
       })
 
-      expect(addPendingSave).toHaveBeenCalledWith(expect.stringContaining('note/untitled-note.md'))
-      expect(removePendingSave).toHaveBeenCalledWith(expect.stringContaining('note/untitled-note.md'))
+      expect(trackUnsaved).toHaveBeenCalledWith(expect.stringContaining('note/untitled-note.md'))
+      expect(markContentPending).toHaveBeenCalledWith(expect.stringContaining('note/untitled-note.md'), expect.stringContaining('Untitled note'))
     })
   })
 
@@ -573,12 +573,7 @@ describe('useNoteActions hook', () => {
       expect(setToastMessage).not.toHaveBeenCalled()
     })
 
-    it('handles rapid creation with one failure independently', async () => {
-      vi.mocked(invoke)
-        .mockResolvedValueOnce(undefined)
-        .mockRejectedValueOnce(new Error('disk full'))
-        .mockResolvedValueOnce(undefined)
-
+    it('handleCreateNoteImmediate does not call invoke (no disk write)', async () => {
       const { result } = renderHook(() => useNoteActions(makeConfig()))
 
       await act(async () => {
@@ -589,8 +584,34 @@ describe('useNoteActions hook', () => {
       })
 
       expect(addEntry).toHaveBeenCalledTimes(3)
-      expect(removeEntry).toHaveBeenCalledTimes(1)
-      expect(removeEntry).toHaveBeenCalledWith(expect.stringContaining('untitled-note-2.md'))
+      // No disk writes for immediate creation — notes are unsaved/in-memory
+      expect(invoke).not.toHaveBeenCalled()
+      expect(removeEntry).not.toHaveBeenCalled()
+    })
+
+    it('closing unsaved tab removes entry', () => {
+      const clearUnsaved = vi.fn()
+      const unsavedPaths = new Set<string>()
+      const config = makeConfig()
+      config.clearUnsaved = clearUnsaved
+      config.unsavedPaths = unsavedPaths
+
+      const { result } = renderHook(() => useNoteActions(config))
+
+      act(() => {
+        result.current.handleCreateNoteImmediate()
+      })
+
+      const createdPath = addEntry.mock.calls[0][0].path
+      unsavedPaths.add(createdPath) // simulate trackUnsaved
+      config.unsavedPaths = unsavedPaths // update ref
+
+      act(() => {
+        result.current.handleCloseTab(createdPath)
+      })
+
+      expect(removeEntry).toHaveBeenCalledWith(createdPath)
+      expect(clearUnsaved).toHaveBeenCalledWith(createdPath)
     })
   })
 })

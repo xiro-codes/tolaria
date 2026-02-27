@@ -233,6 +233,47 @@ describe('useVaultLoader', () => {
       expect(result.current.getNoteStatus('/vault/note/new.md')).toBe('new')
     })
 
+    it('returns unsaved for paths in unsavedPaths', async () => {
+      const { result } = await renderVaultLoader()
+      const newEntry: VaultEntry = { ...mockEntries[0], path: '/vault/note/draft.md', filename: 'draft.md', title: 'Draft' }
+
+      act(() => {
+        result.current.addEntry(newEntry, '# Draft')
+        result.current.trackUnsaved('/vault/note/draft.md')
+      })
+
+      expect(result.current.getNoteStatus('/vault/note/draft.md')).toBe('unsaved')
+    })
+
+    it('unsaved has higher priority than new', async () => {
+      const { result } = await renderVaultLoader()
+      const newEntry: VaultEntry = { ...mockEntries[0], path: '/vault/note/draft.md', filename: 'draft.md', title: 'Draft' }
+
+      act(() => {
+        result.current.addEntry(newEntry, '# Draft')
+        result.current.trackUnsaved('/vault/note/draft.md')
+      })
+
+      // addEntry also calls trackNew, so path is in both newPaths and unsavedPaths
+      expect(result.current.getNoteStatus('/vault/note/draft.md')).toBe('unsaved')
+    })
+
+    it('clearUnsaved transitions from unsaved to new', async () => {
+      const { result } = await renderVaultLoader()
+      const newEntry: VaultEntry = { ...mockEntries[0], path: '/vault/note/draft.md', filename: 'draft.md', title: 'Draft' }
+
+      act(() => {
+        result.current.addEntry(newEntry, '# Draft')
+        result.current.trackUnsaved('/vault/note/draft.md')
+      })
+
+      expect(result.current.getNoteStatus('/vault/note/draft.md')).toBe('unsaved')
+
+      act(() => { result.current.clearUnsaved('/vault/note/draft.md') })
+
+      expect(result.current.getNoteStatus('/vault/note/draft.md')).toBe('new')
+    })
+
     it('treats untracked files as new (green dot, not orange)', async () => {
       mockInvokeFn.mockImplementation(((cmd: string) => {
         if (cmd === 'list_vault') return Promise.resolve(mockEntries)
@@ -418,5 +459,17 @@ describe('resolveNoteStatus', () => {
     expect(resolveNoteStatus('/vault/x.md', new Set(['/vault/x.md']), [], emptyPending)).toBe('new')
     expect(resolveNoteStatus('/vault/x.md', new Set(), [mf('/vault/x.md', 'modified')], emptyPending)).toBe('modified')
     expect(resolveNoteStatus('/vault/x.md', new Set(), [], emptyPending)).toBe('clean')
+  })
+
+  it('unsaved takes priority over all other statuses', () => {
+    const unsaved = new Set(['/vault/x.md'])
+    expect(resolveNoteStatus('/vault/x.md', new Set(['/vault/x.md']), [], undefined, unsaved)).toBe('unsaved')
+    expect(resolveNoteStatus('/vault/x.md', new Set(), [mf('/vault/x.md', 'modified')], undefined, unsaved)).toBe('unsaved')
+    expect(resolveNoteStatus('/vault/x.md', new Set(['/vault/x.md']), [], new Set(['/vault/x.md']), unsaved)).toBe('unsaved')
+  })
+
+  it('without unsavedPaths parameter, behavior is unchanged', () => {
+    expect(resolveNoteStatus('/vault/x.md', new Set(['/vault/x.md']), [])).toBe('new')
+    expect(resolveNoteStatus('/vault/x.md', new Set(), [mf('/vault/x.md', 'modified')])).toBe('modified')
   })
 })

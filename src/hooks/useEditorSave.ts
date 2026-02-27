@@ -13,6 +13,8 @@ interface EditorSaveConfig {
   setTabs: (fn: SetStateAction<any[]>) => void
   setToastMessage: (msg: string | null) => void
   onAfterSave?: () => void
+  /** Called after content is persisted — used to clear unsaved state. */
+  onNotePersisted?: (path: string) => void
 }
 
 /**
@@ -21,7 +23,7 @@ interface EditorSaveConfig {
  */
 const noop = () => {}
 
-export function useEditorSave({ updateVaultContent, setTabs, setToastMessage, onAfterSave = noop }: EditorSaveConfig) {
+export function useEditorSave({ updateVaultContent, setTabs, setToastMessage, onAfterSave = noop, onNotePersisted }: EditorSaveConfig) {
   const pendingContentRef = useRef<{ path: string; content: string } | null>(null)
 
   const updateTabAndContent = useCallback((path: string, content: string) => {
@@ -40,20 +42,29 @@ export function useEditorSave({ updateVaultContent, setTabs, setToastMessage, on
     if (pathFilter && pending.path !== pathFilter) return false
     await saveNote(pending.path, pending.content)
     pendingContentRef.current = null
+    onNotePersisted?.(pending.path)
     return true
-  }, [saveNote])
+  }, [saveNote, onNotePersisted])
 
-  /** Called by Cmd+S — persists the current editor content to disk */
-  const handleSave = useCallback(async () => {
+  /** Called by Cmd+S — persists the current editor content to disk.
+   *  Accepts optional fallback for unsaved notes with no pending edits. */
+  const handleSave = useCallback(async (unsavedFallback?: { path: string; content: string }) => {
     try {
       const saved = await flushPending()
+      if (!saved && unsavedFallback) {
+        await saveNote(unsavedFallback.path, unsavedFallback.content)
+        onNotePersisted?.(unsavedFallback.path)
+        setToastMessage('Saved')
+        onAfterSave()
+        return
+      }
       setToastMessage(saved ? 'Saved' : 'Nothing to save')
       onAfterSave()
     } catch (err) {
       console.error('Save failed:', err)
       setToastMessage(`Save failed: ${err}`)
     }
-  }, [flushPending, setToastMessage, onAfterSave])
+  }, [flushPending, setToastMessage, onAfterSave, saveNote, onNotePersisted])
 
   /** Called by Editor onChange — buffers the latest content without saving */
   const handleContentChange = useCallback((path: string, content: string) => {

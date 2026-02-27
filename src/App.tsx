@@ -76,13 +76,14 @@ function useEditorSaveWithLinks(config: {
   setTabs: Parameters<typeof useEditorSave>[0]['setTabs']
   setToastMessage: (msg: string | null) => void
   onAfterSave: () => void
+  onNotePersisted?: (path: string) => void
 }) {
   const { updateContent, updateEntry } = config
   const saveContent = useCallback((path: string, content: string) => {
     updateContent(path, content)
     updateEntry(path, { outgoingLinks: extractOutgoingLinks(content) })
   }, [updateContent, updateEntry])
-  const editor = useEditorSave({ updateVaultContent: saveContent, setTabs: config.setTabs, setToastMessage: config.setToastMessage, onAfterSave: config.onAfterSave })
+  const editor = useEditorSave({ updateVaultContent: saveContent, setTabs: config.setTabs, setToastMessage: config.setToastMessage, onAfterSave: config.onAfterSave, onNotePersisted: config.onNotePersisted })
   const { handleContentChange: rawOnChange } = editor
   const prevLinksKeyRef = useRef('')
   const handleContentChange = useCallback((path: string, content: string) => {
@@ -127,7 +128,11 @@ function App() {
     onToast: (msg) => setToastMessage(msg),
   })
 
-  const notes = useNoteActions({ addEntry: vault.addEntry, removeEntry: vault.removeEntry, updateContent: vault.updateContent, entries: vault.entries, setToastMessage, updateEntry: vault.updateEntry, addPendingSave: vault.addPendingSave, removePendingSave: vault.removePendingSave })
+  // Ref bridges handleContentChange (created after notes) into useNoteActions.
+  // Read at callback time, so it's always current when user presses Cmd+N.
+  const contentChangeRef = useRef<(path: string, content: string) => void>(() => {})
+
+  const notes = useNoteActions({ addEntry: vault.addEntry, removeEntry: vault.removeEntry, updateContent: vault.updateContent, entries: vault.entries, setToastMessage, updateEntry: vault.updateEntry, addPendingSave: vault.addPendingSave, removePendingSave: vault.removePendingSave, trackUnsaved: vault.trackUnsaved, clearUnsaved: vault.clearUnsaved, unsavedPaths: vault.unsavedPaths, markContentPending: (path, content) => contentChangeRef.current(path, content) })
 
   const navHistory = useNavigationHistory()
 
@@ -198,10 +203,21 @@ function App() {
     }
   }, [handleGoBack, handleGoForward])
 
-  const { handleSave, handleContentChange, savePendingForPath, savePending } = useEditorSaveWithLinks({
+  const { handleSave: handleSaveRaw, handleContentChange, savePendingForPath, savePending } = useEditorSaveWithLinks({
     updateContent: vault.updateContent, updateEntry: vault.updateEntry,
     setTabs: notes.setTabs, setToastMessage, onAfterSave: vault.loadModifiedFiles,
+    onNotePersisted: vault.clearUnsaved,
   })
+  useEffect(() => { contentChangeRef.current = handleContentChange }, [handleContentChange])
+
+  // Wrap handleSave to also persist unsaved notes that have no pending edits (user pressed Cmd+S without typing)
+  const handleSave = useCallback(async () => {
+    const activeTab = notes.tabs.find(t => t.entry.path === notes.activeTabPath)
+    const fallback = activeTab && vault.unsavedPaths.has(activeTab.entry.path)
+      ? { path: activeTab.entry.path, content: activeTab.content }
+      : undefined
+    await handleSaveRaw(fallback)
+  }, [handleSaveRaw, notes.tabs, notes.activeTabPath, vault.unsavedPaths])
 
   const commitFlow = useCommitFlow({ savePending, loadModifiedFiles: vault.loadModifiedFiles, commitAndPush: vault.commitAndPush, setToastMessage })
 

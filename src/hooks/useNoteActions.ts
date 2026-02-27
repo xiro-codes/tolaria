@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { isTauri, mockInvoke, addMockEntry, updateMockContent } from '../mock-tauri'
 import type { VaultEntry } from '../types'
@@ -28,6 +28,11 @@ export interface NoteActionsConfig {
   updateEntry: (path: string, patch: Partial<VaultEntry>) => void
   addPendingSave?: (path: string) => void
   removePendingSave?: (path: string) => void
+  trackUnsaved?: (path: string) => void
+  clearUnsaved?: (path: string) => void
+  unsavedPaths?: Set<string>
+  /** Called when an unsaved note is created so the save system can buffer its initial content. */
+  markContentPending?: (path: string, content: string) => void
 }
 
 async function performRename(
@@ -263,10 +268,13 @@ async function runFrontmatterAndApply(
 export function useNoteActions(config: NoteActionsConfig) {
   const { addEntry, removeEntry, updateContent, entries, setToastMessage, updateEntry, addPendingSave, removePendingSave } = config
   const tabMgmt = useTabManagement()
-  const { setTabs, handleSelectNote, openTabWithContent, handleCloseTab, activeTabPathRef, handleSwitchTab } = tabMgmt
+  const { setTabs, handleSelectNote, openTabWithContent, handleCloseTab, handleCloseTabRef, activeTabPathRef, handleSwitchTab } = tabMgmt
   const tabsRef = useRef(tabMgmt.tabs)
   // eslint-disable-next-line react-hooks/refs
   tabsRef.current = tabMgmt.tabs
+  const unsavedPathsRef = useRef(config.unsavedPaths)
+  // eslint-disable-next-line react-hooks/refs
+  unsavedPathsRef.current = config.unsavedPaths
 
   const updateTabContent = useCallback((path: string, newContent: string) => {
     setTabs((prev) => prev.map((t) => t.entry.path === path ? { ...t, content: newContent } : t))
@@ -300,10 +308,26 @@ export function useNoteActions(config: NoteActionsConfig) {
     const noteType = type || 'Note'
     const title = generateUntitledName(entries, noteType, pendingNamesRef.current)
     pendingNamesRef.current.add(title)
-    handleCreateNote(title, noteType)
+    const resolved = resolveNewNote(title, noteType)
+    openTabWithContent(resolved.entry, resolved.content)
+    addEntryWithMock(resolved.entry, resolved.content, addEntry)
+    config.trackUnsaved?.(resolved.entry.path)
+    config.markContentPending?.(resolved.entry.path, resolved.content)
     signalFocusEditor()
     setTimeout(() => pendingNamesRef.current.delete(title), 500)
-  }, [entries, handleCreateNote])
+  }, [entries, openTabWithContent, addEntry, config.trackUnsaved, config.markContentPending]) // eslint-disable-line react-hooks/exhaustive-deps -- config callbacks are stable
+
+  /** Close tab and discard entry+unsaved state if the note was never persisted. */
+  const handleCloseTabWithCleanup = useCallback((path: string) => {
+    if (unsavedPathsRef.current?.has(path)) {
+      removeEntry(path)
+      config.clearUnsaved?.(path)
+    }
+    handleCloseTab(path)
+  }, [handleCloseTab, removeEntry, config.clearUnsaved]) // eslint-disable-line react-hooks/exhaustive-deps -- ref access is stable
+
+  // Keep handleCloseTabRef in sync so Cmd+W and menu events also clean up unsaved notes.
+  useEffect(() => { handleCloseTabRef.current = handleCloseTabWithCleanup })
 
   const handleCreateType = useCallback((typeName: string) => {
     createAndPersist(resolveNewType(typeName), addEntry, openTabWithContent, persistCbs)
@@ -340,6 +364,7 @@ export function useNoteActions(config: NoteActionsConfig) {
 
   return {
     ...tabMgmt,
+    handleCloseTab: handleCloseTabWithCleanup,
     handleNavigateWikilink,
     handleCreateNote,
     handleCreateNoteImmediate,

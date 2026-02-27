@@ -42,6 +42,26 @@ function useNewNoteTracker() {
   return { newPaths, trackNew, clear }
 }
 
+function useUnsavedTracker() {
+  const [unsavedPaths, setUnsavedPaths] = useState<Set<string>>(new Set())
+
+  const trackUnsaved = useCallback((path: string) => {
+    setUnsavedPaths((prev) => new Set(prev).add(path))
+  }, [])
+
+  const clearUnsaved = useCallback((path: string) => {
+    setUnsavedPaths((prev) => {
+      const next = new Set(prev)
+      next.delete(path)
+      return next
+    })
+  }, [])
+
+  const clearAll = useCallback(() => setUnsavedPaths(new Set()), [])
+
+  return { unsavedPaths, trackUnsaved, clearUnsaved, clearAll }
+}
+
 function usePendingSaveTracker() {
   const [pendingSavePaths, setPendingSavePaths] = useState<Set<string>>(new Set())
 
@@ -61,8 +81,9 @@ function usePendingSaveTracker() {
 }
 
 export function resolveNoteStatus(
-  path: string, newPaths: Set<string>, modifiedFiles: ModifiedFile[], pendingSavePaths?: Set<string>,
+  path: string, newPaths: Set<string>, modifiedFiles: ModifiedFile[], pendingSavePaths?: Set<string>, unsavedPaths?: Set<string>,
 ): NoteStatus {
+  if (unsavedPaths?.has(path)) return 'unsaved'
   if (pendingSavePaths?.has(path)) return 'pendingSave'
   if (newPaths.has(path)) return 'new'
   const gitEntry = modifiedFiles.find((f) => f.path === path)
@@ -78,10 +99,11 @@ export function useVaultLoader(vaultPath: string) {
   const [modifiedFiles, setModifiedFiles] = useState<ModifiedFile[]>([])
   const tracker = useNewNoteTracker()
   const pendingSave = usePendingSaveTracker()
+  const unsaved = useUnsavedTracker()
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale data then load new vault
-    setEntries([]); setAllContent({}); setModifiedFiles([]); tracker.clear()
+    setEntries([]); setAllContent({}); setModifiedFiles([]); tracker.clear(); unsaved.clearAll()
     loadVaultData(vaultPath)
       .then(({ entries: e, allContent: c }) => { setEntries(e); setAllContent(c) })
       .catch((err) => console.warn('Vault scan failed:', err))
@@ -139,7 +161,7 @@ export function useVaultLoader(vaultPath: string) {
     tauriCall<string>('get_file_diff', { vaultPath, path }, { path }), [vaultPath])
 
   const getNoteStatus = useCallback((path: string): NoteStatus =>
-    resolveNoteStatus(path, tracker.newPaths, modifiedFiles, pendingSave.pendingSavePaths), [tracker.newPaths, modifiedFiles, pendingSave.pendingSavePaths])
+    resolveNoteStatus(path, tracker.newPaths, modifiedFiles, pendingSave.pendingSavePaths, unsaved.unsavedPaths), [tracker.newPaths, modifiedFiles, pendingSave.pendingSavePaths, unsaved.unsavedPaths])
 
   const commitAndPush = useCallback((message: string): Promise<string> =>
     commitWithPush(vaultPath, message), [vaultPath])
@@ -158,5 +180,8 @@ export function useVaultLoader(vaultPath: string) {
     getNoteStatus, commitAndPush, reloadVault,
     addPendingSave: pendingSave.addPendingSave,
     removePendingSave: pendingSave.removePendingSave,
+    unsavedPaths: unsaved.unsavedPaths,
+    trackUnsaved: unsaved.trackUnsaved,
+    clearUnsaved: unsaved.clearUnsaved,
   }
 }
