@@ -14,7 +14,7 @@
         };
 
         libraries = with pkgs; [
-          webkit2gtk
+          webkitgtk_4_1
           gtk3
           cairo
           gdk-pixbuf
@@ -41,36 +41,30 @@
           version = "0.1.0";
           src = ./.;
 
-          sourceRoot = "source/src-tauri";
+          buildAndTestSubdir = "src-tauri";
 
           cargoLock = {
             lockFile = ./src-tauri/Cargo.lock;
-            # If the Cargo.lock needs its hash updated, run the build and replace this hash or remove if not needed.
             allowBuiltinFetchGit = true;
           };
+
+          postPatch = ''
+            ln -s src-tauri/Cargo.lock Cargo.lock
+          '';
 
           nativeBuildInputs = with pkgs; [
             pkg-config
             nodejs_22
             pnpm
             cargo-tauri
-            wrapGAppsHook
+            wrapGAppsHook3
           ];
 
           buildInputs = libraries;
-
-          # For a complete Nix build of a Tauri app with a frontend:
-          # In a strict Nix sandbox, pnpm install requires fetchPnpmDeps. 
-          # We're using a simplified approach where you build the frontend manually first, or use a more advanced builder.
-          # Here we assume the frontend is either built or the environment allows network access for this basic flake package.
           
           preBuild = ''
-            cd ..
-            # You would normally use fetchPnpmDeps in Nix, but for simplicity here 
-            # we just do a pnpm install if network is available, or assume pre-built.
             pnpm install --no-frozen-lockfile || true
             pnpm build || true
-            cd src-tauri
           '';
 
           postInstall = ''
