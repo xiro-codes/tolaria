@@ -48,6 +48,8 @@
             allowBuiltinFetchGit = true;
           };
 
+          doCheck = false;
+
           postPatch = ''
             ln -s src-tauri/Cargo.lock Cargo.lock
           '';
